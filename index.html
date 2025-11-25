@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Laporan Lingkungan (Online)</title>
+    <style>
+        /* CSS Mobile-First */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
+            -webkit-tap-highlight-color: transparent; /* Untuk mobile */
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            min-height: 100vh;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding-bottom: 70px; /* Ruang untuk menu bawah */
+        }
+        header {
+            background-color: #17a2b8;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+        .content-section {
+            padding: 20px;
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        /* Form Styling */
+        form label {
+            display: block;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #495057;
+        }
+        form input, form select, form textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        form textarea {
+            resize: vertical;
+        }
+        form button {
+            background-color: #28a745;
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 30px;
+            width: 100%;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+        form button:active {
+            background-color: #1e7e34;
+        }
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        /* Tanggapan Styling */
+        .response-card {
+            background-color: #e9f7fe;
+            border: 1px solid #bce8f1;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+        .response-card strong {
+            color: #0c5460;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .response-card .laporan-isi {
+            font-style: italic;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        /* Menu Bawah (Navigasi Mobile) */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #fff;
+            display: flex;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+        .nav-item.active {
+            color: #17a2b8;
+            font-weight: bold;
+        }
+        .nav-item i {
+            display: block;
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
+</head>
+<body>
+
+    <div class="container">
+        <header>Lapor Lingkungan Real-Time</header>
+
+        <div id="lapor" class="content-section active">
+            <h3>📝 Buat Laporan Online</h3>
+            <form id="laporan-form">
+                <label for="nama">Nama Pelapor:</label>
+                <input type="text" id="nama" name="nama" required placeholder="Cth: Budi Santoso">
+
+                <label for="kategori">Kategori Masalah:</label>
+                <select id="kategori" name="kategori" required>
+                    <option value="">Pilih Kategori</option>
+                    <option value="Sampah Menumpuk">Sampah Menumpuk</option>
+                    <option value="Kebersihan Fasilitas Umum">Kebersihan Fasilitas Umum</option>
+                </select>
+
+                <label for="isi">Isi Laporan (Detail):</label>
+                <textarea id="isi" name="isi" rows="4" required placeholder="Jelaskan masalahnya secara detail..."></textarea>
+
+                <label for="lokasi">Lokasi Masalah:</label>
+                <input type="text" id="lokasi" name="lokasi" required placeholder="Alamat lengkap / koordinat / patokan">
+
+                <button type="submit" id="submit-button">Kirim Laporan Online</button>
+                <div id="status-message" class="status-message status-success" style="display: none;"></div>
+            </form>
+        </div>
+
+        <div id="tanggapan" class="content-section">
+            <h3>💬 Tanggapan Admin (Dinamis)</h3>
+            <div class="loading" id="tanggapan-loading">Memuat tanggapan terbaru...</div>
+            <div id="tanggapan-list">
+                </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" data-tab="lapor">
+            <i class="fas fa-bullhorn"></i>
+            Lapor
+        </div>
+        <div class="nav-item" data-tab="tanggapan">
+            <i class="fas fa-comment-dots"></i>
+            Tanggapan
+        </div>
+    </div>
+
+    <script>
+        // *** BAGIAN PENTING: GANTI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA ***
+        const API_URL = 'AKfycbzzhhVGDXTqvJp282a8aob-IJOpf0xVoyqDvIz1v-YvRxp427psruU9lBkcJAG9sf2k';
+        // **********************************************************************
+        
+        // Fungsionalitas Navigasi Tab
+        document.querySelectorAll('.nav-item').forEach(navItem => {
+            navItem.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-tab');
+
+                // Update Navigasi
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update Konten
+                document.querySelectorAll('.content-section').forEach(c => c.classList.remove('active'));
+                document.getElementById(targetId).classList.add('active');
+
+                // Muat tanggapan jika tab yang dipilih adalah 'tanggapan'
+                if (targetId === 'tanggapan') {
+                    fetchTanggapan();
+                }
+            });
+        });
+
+        // 1. Fungsionalitas Pengiriman Laporan (POST)
+        const form = document.getElementById('laporan-form');
+        const statusMessage = document.getElementById('status-message');
+        const submitButton = document.getElementById('submit-button');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Tampilkan loading dan nonaktifkan tombol
+            submitButton.textContent = 'Mengirim...';
+            submitButton.disabled = true;
+            statusMessage.style.display = 'none';
+
+            // Kumpulkan data form
+            const formData = new FormData(form);
+            const payload = {};
+            for (let [key, value] of formData.entries()) {
+                payload[key] = value;
+            }
+            
+            // Kirim data ke Google Apps Script API
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusMessage.textContent = '✅ Laporan berhasil dikirim secara real-time!';
+                    statusMessage.classList.add('status-success');
+                    form.reset(); 
+                } else {
+                    statusMessage.textContent = '❌ Gagal: ' + (data.message || 'Terjadi kesalahan.');
+                    statusMessage.classList.remove('status-success');
+                }
+                statusMessage.style.display = 'block';
+
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 5000);
+            })
+            .catch(error => {
+                statusMessage.textContent = '❌ Gagal terhubung ke server (Online diperlukan).';
+                statusMessage.classList.remove('status-success');
+                statusMessage.style.display = 'block';
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                submitButton.textContent = 'Kirim Laporan Online';
+                submitButton.disabled = false;
+            });
+        });
+
+        // 2. Fungsionalitas Memuat Tanggapan (GET)
+        const tanggapanList = document.getElementById('tanggapan-list');
+        const tanggapanLoading = document.getElementById('tanggapan-loading');
+
+        function fetchTanggapan() {
+            tanggapanList.innerHTML = '';
+            tanggapanLoading.style.display = 'block';
+
+            // Ambil data Tanggapan dari Google Apps Script API
+            fetch(API_URL + '?action=get_responses') // Query parameter hanya untuk memastikan doGet terpanggil
+            .then(response => response.json())
+            .then(data => {
+                tanggapanLoading.style.display = 'none';
+
+                if (data.status === 'success' && data.data && data.data.length > 0) {
+                    data.data.forEach(t => {
+                        // Asumsi kolom di sheet Tanggapan adalah:
+                        // 'Timestamp', 'ID Laporan', 'Isi Laporan Pelapor', 'Tanggapan Admin'
+                        const card = document.createElement('div');
+                        card.classList.add('response-card');
+                        card.innerHTML = `
+                            <strong>Laporan (${t['ID Laporan'] || 'ID N/A'}):</strong>
+                            <span class="laporan-isi">${t['Isi Laporan Pelapor'] || 'Laporan Tidak Dikenal'}</span>
+                            <hr style="border: none; border-top: 1px dashed #bce8f1; margin: 10px 0;">
+                            <strong>💬 Tanggapan Admin:</strong> ${t['Tanggapan Admin'] || 'Belum ada tanggapan.'}
+                            <small style="display: block; text-align: right; color: #888;">${new Date(t['Timestamp']).toLocaleString()}</small>
+                        `;
+                        tanggapanList.appendChild(card);
+                    });
+                } else {
+                    tanggapanList.innerHTML = '<p style="text-align: center; color: #6c757d;">Belum ada tanggapan dari admin.</p>';
+                }
+            })
+            .catch(error => {
+                tanggapanLoading.style.display = 'none';
+                tanggapanList.innerHTML = '<p style="text-align: center; color: red;">Gagal memuat tanggapan. Cek koneksi internet Anda.</p>';
+                console.error('Error fetching responses:', error);
+            });
+        }
+
+        // Muat tanggapan saat aplikasi dimuat pertama kali (jika ingin)
+        // fetchTanggapan(); 
+    </script>
+</body>
+</html>
