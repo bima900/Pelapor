@@ -1,315 +1,116 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Laporan Lingkungan (Online)</title>
-    <style>
-        /* CSS Mobile-First */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f2f5;
-            color: #333;
-            -webkit-tap-highlight-color: transparent; /* Untuk mobile */
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #fff;
-            min-height: 100vh;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            padding-bottom: 70px; /* Ruang untuk menu bawah */
-        }
-        header {
-            background-color: #17a2b8;
-            color: white;
-            padding: 15px 20px;
-            text-align: center;
-            font-size: 1.2em;
-            font-weight: 600;
-        }
-        .content-section {
-            padding: 20px;
-            display: none;
-        }
-        .content-section.active {
-            display: block;
-        }
-        /* Form Styling */
-        form label {
-            display: block;
-            margin-top: 15px;
-            font-weight: 600;
-            color: #495057;
-        }
-        form input, form select, form textarea {
-            width: 100%;
-            padding: 12px;
-            margin-top: 5px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-        form textarea {
-            resize: vertical;
-        }
-        form button {
-            background-color: #28a745;
-            color: white;
-            padding: 15px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 30px;
-            width: 100%;
-            font-size: 18px;
-            transition: background-color 0.3s;
-        }
-        form button:active {
-            background-color: #1e7e34;
-        }
-        .status-message {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .status-success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        /* Tanggapan Styling */
-        .response-card {
-            background-color: #e9f7fe;
-            border: 1px solid #bce8f1;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-        }
-        .response-card strong {
-            color: #0c5460;
-            display: block;
-            margin-bottom: 5px;
-        }
-        .response-card .laporan-isi {
-            font-style: italic;
-            color: #6c757d;
-            margin-top: 5px;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #6c757d;
-        }
+const SPREADSHEET_ID = 'GANTI_DENGAN_ID_SPREADSHEET_ANDA'; // Opsional, tapi lebih aman
+const SHEET_NAME_LAPORAN = "Laporan";
+const SHEET_NAME_TANGGAPAN = "Tanggapan"; 
 
-        /* Menu Bawah (Navigasi Mobile) */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background-color: #fff;
-            display: flex;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-        }
-        .nav-item {
-            flex: 1;
-            text-align: center;
-            padding: 10px 0;
-            cursor: pointer;
-            color: #6c757d;
-            font-size: 14px;
-            transition: color 0.3s;
-        }
-        .nav-item.active {
-            color: #17a2b8;
-            font-weight: bold;
-        }
-        .nav-item i {
-            display: block;
-            font-size: 20px;
-            margin-bottom: 2px;
-        }
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
-</head>
-<body>
+function getSpreadsheet() {
+  // Jika SPREADSHEET_ID disetel, gunakan itu. Jika tidak, gunakan spreadsheet yang terikat.
+  if (SPREADSHEET_ID && SPREADSHEET_ID !== 'GANTI_DENGAN_ID_SPREADSHEET_ANDA') {
+    return SpreadsheetApp.openById(SPREADSHEET_ID);
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
 
-    <div class="container">
-        <header>Lapor Lingkungan Real-Time</header>
+/**
+ * doPOST: Menerima laporan dari frontend dan menyimpannya ke Sheet Laporan.
+ */
+function doPost(e) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME_LAPORAN);
+    
+    if (!sheet) {
+      return responseJson({ status: "error", message: `Sheet '${SHEET_NAME_LAPORAN}' tidak ditemukan.` });
+    }
 
-        <div id="lapor" class="content-section active">
-            <h3>📝 Buat Laporan Online</h3>
-            <form id="laporan-form">
-                <label for="nama">Nama Pelapor:</label>
-                <input type="text" id="nama" name="nama" required placeholder="Cth: Budi Santoso">
+    // Pastikan data diterima sebagai JSON
+    const data = JSON.parse(e.postData.contents);
+    
+    // Asumsi nama field di HTML/payload sama: nama, kategori, isi, lokasi
+    const rowData = [
+      new Date(),               // Timestamp
+      data.nama,                // Nama Pelapor
+      data.kategori,            // Kategori Masalah
+      data.isi,                 // Isi Laporan
+      data.lokasi               // Lokasi Masalah
+    ];
 
-                <label for="kategori">Kategori Masalah:</label>
-                <select id="kategori" name="kategori" required>
-                    <option value="">Pilih Kategori</option>
-                    <option value="Sampah Menumpuk">Sampah Menumpuk</option>
-                    <option value="Kebersihan Fasilitas Umum">Kebersihan Fasilitas Umum</option>
-                </select>
+    sheet.appendRow(rowData);
 
-                <label for="isi">Isi Laporan (Detail):</label>
-                <textarea id="isi" name="isi" rows="4" required placeholder="Jelaskan masalahnya secara detail..."></textarea>
+    return responseJson({ 
+      status: "success", 
+      message: "Laporan berhasil dikirim." 
+    });
+  } catch (error) {
+    // Menangkap error JSON parsing atau error lainnya
+    return responseJson({ 
+      status: "error", 
+      message: "Gagal memproses permintaan POST. Error: " + error.toString() 
+    });
+  }
+}
 
-                <label for="lokasi">Lokasi Masalah:</label>
-                <input type="text" id="lokasi" name="lokasi" required placeholder="Alamat lengkap / koordinat / patokan">
+/**
+ * doGet: Mengambil data Tanggapan dari Sheet Tanggapan untuk frontend.
+ */
+function doGet(e) {
+  // Hanya melayani permintaan GET jika ada parameter 'action=get_responses'
+  if (e.parameter.action !== 'get_responses') {
+     // Ini agar URL Apps Script tidak langsung menampilkan HTML jika diakses tanpa parameter
+    return ContentService.createTextOutput("Akses tidak sah.");
+  }
 
-                <button type="submit" id="submit-button">Kirim Laporan Online</button>
-                <div id="status-message" class="status-message status-success" style="display: none;"></div>
-            </form>
-        </div>
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME_TANGGAPAN);
+    
+    if (!sheet) {
+      return responseJson({ status: "error", message: `Sheet '${SHEET_NAME_TANGGAPAN}' tidak ditemukan.` });
+    }
 
-        <div id="tanggapan" class="content-section">
-            <h3>💬 Tanggapan Admin (Dinamis)</h3>
-            <div class="loading" id="tanggapan-loading">Memuat tanggapan terbaru...</div>
-            <div id="tanggapan-list">
-                </div>
-        </div>
-    </div>
+    const range = sheet.getDataRange();
+    const values = range.getValues();
+    
+    if (values.length <= 1) {
+      return responseJson({ status: "success", data: [] }); // Tidak ada tanggapan (hanya header)
+    }
+    
+    const headers = values[0];
+    const tanggapanData = [];
+    
+    // Mulai dari baris kedua (index 1) untuk data
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      const record = {};
+      for (let j = 0; j < headers.length; j++) {
+        // Gunakan header sebagai kunci objek
+        record[headers[j]] = row[j]; 
+      }
+      tanggapanData.push(record);
+    }
 
-    <div class="bottom-nav">
-        <div class="nav-item active" data-tab="lapor">
-            <i class="fas fa-bullhorn"></i>
-            Lapor
-        </div>
-        <div class="nav-item" data-tab="tanggapan">
-            <i class="fas fa-comment-dots"></i>
-            Tanggapan
-        </div>
-    </div>
+    // Menggunakan .reverse() untuk menampilkan data terbaru di bagian atas
+    return responseJson({ 
+      status: "success", 
+      data: tanggapanData.reverse()
+    });
 
-    <script>
-        // *** BAGIAN PENTING: GANTI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA ***
-        const API_URL ='https://script.google.com/macros/s/AKfycbz_JjAcfwnlpu8AOUqQdtirCcIfZcpQJhz53_l91BCVgbx7fM4lWpWGPtRUZ-d3cxgI/exec';
-        // **********************************************************************
-        
-        // Fungsionalitas Navigasi Tab
-        document.querySelectorAll('.nav-item').forEach(navItem => {
-            navItem.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-tab');
+  } catch (error) {
+    return responseJson({ 
+      status: "error", 
+      message: "Gagal memproses permintaan GET. Error: " + error.toString() 
+    });
+  }
+}
 
-                // Update Navigasi
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                this.classList.add('active');
-                
-                // Update Konten
-                document.querySelectorAll('.content-section').forEach(c => c.classList.remove('active'));
-                document.getElementById(targetId).classList.add('active');
-
-                // Muat tanggapan jika tab yang dipilih adalah 'tanggapan'
-                if (targetId === 'tanggapan') {
-                    fetchTanggapan();
-                }
-            });
-        });
-
-        // 1. Fungsionalitas Pengiriman Laporan (POST)
-        const form = document.getElementById('laporan-form');
-        const statusMessage = document.getElementById('status-message');
-        const submitButton = document.getElementById('submit-button');
-
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Tampilkan loading dan nonaktifkan tombol
-            submitButton.textContent = 'Mengirim...';
-            submitButton.disabled = true;
-            statusMessage.style.display = 'none';
-
-            // Kumpulkan data form
-            const formData = new FormData(form);
-            const payload = {};
-            for (let [key, value] of formData.entries()) {
-                payload[key] = value;
-            }
-            
-            // Kirim data ke Google Apps Script API
-            fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    statusMessage.textContent = '✅ Laporan berhasil dikirim secara real-time!';
-                    statusMessage.classList.add('status-success');
-                    form.reset(); 
-                } else {
-                    statusMessage.textContent = '❌ Gagal: ' + (data.message || 'Terjadi kesalahan.');
-                    statusMessage.classList.remove('status-success');
-                }
-                statusMessage.style.display = 'block';
-
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 5000);
-            })
-            .catch(error => {
-                statusMessage.textContent = '❌ Gagal terhubung ke server (Online diperlukan).';
-                statusMessage.classList.remove('status-success');
-                statusMessage.style.display = 'block';
-                console.error('Error:', error);
-            })
-            .finally(() => {
-                submitButton.textContent = 'Kirim Laporan Online';
-                submitButton.disabled = false;
-            });
-        });
-
-        // 2. Fungsionalitas Memuat Tanggapan (GET)
-        const tanggapanList = document.getElementById('tanggapan-list');
-        const tanggapanLoading = document.getElementById('tanggapan-loading');
-
-        function fetchTanggapan() {
-            tanggapanList.innerHTML = '';
-            tanggapanLoading.style.display = 'block';
-
-            // Ambil data Tanggapan dari Google Apps Script API
-            fetch(API_URL + '?action=get_responses') // Query parameter hanya untuk memastikan doGet terpanggil
-            .then(response => response.json())
-            .then(data => {
-                tanggapanLoading.style.display = 'none';
-
-                if (data.status === 'success' && data.data && data.data.length > 0) {
-                    data.data.forEach(t => {
-                        // Asumsi kolom di sheet Tanggapan adalah:
-                        // 'Timestamp', 'ID Laporan', 'Isi Laporan Pelapor', 'Tanggapan Admin'
-                        const card = document.createElement('div');
-                        card.classList.add('response-card');
-                        card.innerHTML = `
-                            <strong>Laporan (${t['ID Laporan'] || 'ID N/A'}):</strong>
-                            <span class="laporan-isi">${t['Isi Laporan Pelapor'] || 'Laporan Tidak Dikenal'}</span>
-                            <hr style="border: none; border-top: 1px dashed #bce8f1; margin: 10px 0;">
-                            <strong>💬 Tanggapan Admin:</strong> ${t['Tanggapan Admin'] || 'Belum ada tanggapan.'}
-                            <small style="display: block; text-align: right; color: #888;">${new Date(t['Timestamp']).toLocaleString()}</small>
-                        `;
-                        tanggapanList.appendChild(card);
-                    });
-                } else {
-                    tanggapanList.innerHTML = '<p style="text-align: center; color: #6c757d;">Belum ada tanggapan dari admin.</p>';
-                }
-            })
-            .catch(error => {
-                tanggapanLoading.style.display = 'none';
-                tanggapanList.innerHTML = '<p style="text-align: center; color: red;">Gagal memuat tanggapan. Cek koneksi internet Anda.</p>';
-                console.error('Error fetching responses:', error);
-            });
-        }
-
-        // Muat tanggapan saat aplikasi dimuat pertama kali (jika ingin)
-        // fetchTanggapan(); 
-    </script>
-</body>
-</html>
+/**
+ * Fungsi pembantu untuk mengembalikan respons JSON dengan benar.
+ */
+function responseJson(obj) {
+  // Penting untuk mengatasi masalah CORS/Origin di Google Sites/Browser
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST'
+    });
+}
